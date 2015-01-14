@@ -1,5 +1,7 @@
-Microsoft Visual Studio Solution File, Format Version 11.00
-# Visual Studio 2010
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.22310.1
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{FA88350E-5D2E-487A-BA47-62CCA1749D14}"
 	ProjectSection(SolutionItems) = preProject
 		External\ICSharpCode.SharpZipLib.dll = External\ICSharpCode.SharpZipLib.dll
@@ -16,6 +18,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebSpy.Syslog", "WebSpy.Syslog\WebSpy.Syslog.csproj", "{BFC68CCF-1AF7-4039-946C-CEC2CCE0A298}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Analyzer", "Analyzer\Analyzer.csproj", "{81A728CB-170B-4A84-A483-E6BFB0BCDFE5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Netlap", "Netlap\Netlap.csproj", "{5274205B-1A14-40BB-B936-74140BFEAC44}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -60,6 +64,12 @@ Global
 		{81A728CB-170B-4A84-A483-E6BFB0BCDFE5}.Development|Any CPU.Build.0 = Debug|Any CPU
 		{81A728CB-170B-4A84-A483-E6BFB0BCDFE5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{81A728CB-170B-4A84-A483-E6BFB0BCDFE5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5274205B-1A14-40BB-B936-74140BFEAC44}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5274205B-1A14-40BB-B936-74140BFEAC44}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5274205B-1A14-40BB-B936-74140BFEAC44}.Development|Any CPU.ActiveCfg = Debug|Any CPU
+		{5274205B-1A14-40BB-B936-74140BFEAC44}.Development|Any CPU.Build.0 = Debug|Any CPU
+		{5274205B-1A14-40BB-B936-74140BFEAC44}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5274205B-1A14-40BB-B936-74140BFEAC44}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
