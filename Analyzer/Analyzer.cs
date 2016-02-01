@@ -9,9 +9,11 @@ using System.Diagnostics;
 
 using ICSharpCode.SharpZipLib.GZip;
 
-namespace Analyzer {
+namespace Analyzer
+{
   // #Fields: Start, Duration, Source IP, Source Port, Destination IP, Destination Port, IP Protocol, Packets, Octets
-  class NetmonRecord {
+  class NetmonRecord
+  {
     public DateTime start;
     public TimeSpan duration;
     public IPAddress sourceAddress;
@@ -24,12 +26,14 @@ namespace Analyzer {
 
     static DateTimeFormatInfo dateParser = new DateTimeFormatInfo();
 
-    static NetmonRecord() {
+    static NetmonRecord()
+    {
       dateParser.ShortDatePattern = "yyyy-MM-dd";
       dateParser.ShortTimePattern = "HH:mm:ss.fff";
     }
 
-    internal void Parse(string line) {
+    internal void Parse(string line)
+    {
       string[] fields = line.Split('\t');
       start = DateTime.ParseExact(fields[0], "yyyy-MM-dd HH:mm:ss.fff", dateParser);
       duration = new TimeSpan(0, 0, 0, 0, Int32.Parse(fields[1]));
@@ -42,41 +46,43 @@ namespace Analyzer {
       if (fields[5] != "")
         destinationPort = Int32.Parse(fields[5]);
 
-      if (fields[6] == "Tcp")
+      if (fields[6] == "Tcp" || fields[6] == "6")
         protocol = 6;
-      else if (fields[6] == "Udp")
+      else if (fields[6] == "Udp" || fields[6] == "17")
         protocol = 17;
-      else if (fields[6] == "Gre")
+      else if (fields[6] == "Gre" || fields[6] == "47")
         protocol = 47;
 
       packets = Int64.Parse(fields[7]);
       octets = Int64.Parse(fields[8]);
     }
-    internal void Write(BinaryWriter writer) {
+    internal void Write(BinaryWriter writer)
+    {
       writer.Write(start.Ticks);
       writer.Write(duration.Ticks);
 
       byte[] data = BitConverter.GetBytes(sourceAddress.Address);
       writer.Write(data, 0, 4);
-      
+
       writer.Write((short)sourcePort);
-      
+
       data = BitConverter.GetBytes(destinationAddress.Address);
       writer.Write(data, 0, 4);
-      
+
       writer.Write((short)destinationPort);
-      
+
       writer.Write(protocol);
       writer.Write(packets);
       writer.Write(octets);
     }
-    internal void Read(BinaryReader reader) {
+    internal void Read(BinaryReader reader)
+    {
       byte[] data = reader.ReadBytes(48);
       start = new DateTime(BitConverter.ToInt64(data, 0));
       duration = new TimeSpan(BitConverter.ToInt64(data, 8));
       sourceAddress = new IPAddress(BitConverter.ToUInt32(data, 16));
-      sourcePort = BitConverter.ToUInt16(data, 20);      
-      destinationAddress = new IPAddress(BitConverter.ToUInt32(data, 22));      
+      sourcePort = BitConverter.ToUInt16(data, 20);
+      destinationAddress = new IPAddress(BitConverter.ToUInt32(data, 22));
       destinationPort = BitConverter.ToUInt16(data, 26);
       protocol = BitConverter.ToInt32(data, 28);
       packets = BitConverter.ToInt64(data, 32);
@@ -84,161 +90,137 @@ namespace Analyzer {
     }
   }
 
-  public class Subnet {
+  public class Subnet
+  {
     private IPAddress address;
-    public IPAddress Address {
+    public IPAddress Address
+    {
       get { return address; }
       set { address = value; }
     }
     private int maskLength;
-    public int MaskLength {
+    public int MaskLength
+    {
       get { return maskLength; }
-      set {
+      set
+      {
         maskLength = value;
         mask = 1 << maskLength - 1;
       }
     }
     private long mask;
-    public Subnet(IPAddress address, int maskLength) {
+    public Subnet(IPAddress address, int maskLength)
+    {
       this.address = address;
       this.maskLength = maskLength;
       mask = 1 << maskLength - 1;
     }
-    public static Subnet Parse(string value) {
+    public static Subnet Parse(string value)
+    {
       string[] fields = value.Split('/');
       IPAddress address = IPAddress.Parse(fields[0]);
       int maskLength = -1;
-      if (fields.Length > 1) {
+      if (fields.Length > 1)
+      {
         maskLength = Int32.Parse(fields[1]);
-      } else {
+      }
+      else {
         byte first = address.GetAddressBytes()[0];
-        if (1 <= first && first <= 126) {
+        if (1 <= first && first <= 126)
+        {
           maskLength = 8;
-        } else if (128 <= first && first <= 223) {
+        }
+        else if (128 <= first && first <= 223)
+        {
           maskLength = 16;
-        } else if (192 <= first && first <= 223) {
+        }
+        else if (192 <= first && first <= 223)
+        {
           maskLength = 24;
-        } else if (224 <= first && first <= 239) {
-        } else if (240 <= first && first <= 254) {
+        }
+        else if (224 <= first && first <= 239)
+        {
+        }
+        else if (240 <= first && first <= 254)
+        {
         }
         // Validate the default mask, and assume we're a host address
         // if there are any host bits set.
         long mask = ~((1 << maskLength) - 1) & 0xffffffff;
-        if ((IPAddress.NetworkToHostOrder((int)address.Address) & mask) != 0) {
+        if ((IPAddress.NetworkToHostOrder((int)address.Address) & mask) != 0)
+        {
           maskLength = 32;
         }
       }
       return new Subnet(address, maskLength);
     }
-    public override string ToString() {
+    public override string ToString()
+    {
       return address + "/" + maskLength;
     }
   }
 
-  class Summary {
+  class Summary
+  {
     public long Hits;
     public long Bytes;
     public long Packets;
     public TimeSpan Duration;
-    public void Process(NetmonRecord r) {
+    public void Process(NetmonRecord r)
+    {
       Hits += 1;
       Bytes += r.octets;
       Packets += r.packets;
       Duration += r.duration;
     }
   }
-  class Entry {
+  class Entry
+  {
     Summary peak = new Summary();
     public Summary Peak { get { return peak; } }
     Summary offpeak = new Summary();
     public Summary Offpeak { get { return offpeak; } }
   }
 
-  class Analyzer {
+  class Analyzer
+  {
     //static PerformanceCounter readCounter = new PerformanceCounter("WebSpy5", "Storage Reads/sec", false);
     //static PerformanceCounter parseCounter = new PerformanceCounter("WebSpy5", "Hits Loaded/sec", false);
-    static Dictionary<long, string>[] subnets = new Dictionary<long, string>[33];
-    static string Resolve(IPAddress address) {
-      for (int i = 32; i >= 0; i--) {
+    static Dictionary<IPAddress, string>[] subnets = new Dictionary<IPAddress, string>[33];
+    static string Resolve(IPAddress address)
+    {
+      for (int i = 32; i >= 0; i--)
+      {
         long mask = i == 32 ? 0xffffffff : ((1 << i) - 1) & 0xffffffff;
         long addr = address.Address & mask;
-        if (subnets[i].ContainsKey(addr))
-          return subnets[i][addr];
+        var ip = new IPAddress(addr);
+        string result;
+        if (subnets[i].TryGetValue(ip, out result))
+          return result;
       }
       return null;
     }
-    static Summary Process<K>(Dictionary<K, Summary> d, K k) {
+    static Summary Process<K>(Dictionary<K, Summary> d, K k)
+    {
       Summary s;
       if (!d.TryGetValue(k, out s))
         d.Add(k, s = new Summary());
       return s;
     }
-    static Summary Process(Hashtable d, object k) {
+    static Summary Process(Hashtable d, object k)
+    {
       Summary s = (Summary)d[k];
       if (s == null)
         d.Add(k, s = new Summary());
       return s;
     }
-    static void Main(string[] args) {
-      #region Load data file
-      if (false) {
-        //Hashtable sourceIP = new Hashtable();
-        //Hashtable destIP = new Hashtable();
-        //Hashtable sPort = new Hashtable();
-        //Hashtable dPort = new Hashtable();
-        //Hashtable protocol = new Hashtable();
-        //Hashtable dates = new Hashtable();
-
-        Dictionary<IPAddress, Summary> sourceIP = new Dictionary<IPAddress, Summary>();
-        Dictionary<IPAddress, Summary> destIP = new Dictionary<IPAddress, Summary>();
-        Dictionary<int, Summary> sPort = new Dictionary<int, Summary>();
-        Dictionary<int, Summary> dPort = new Dictionary<int, Summary>();
-        Dictionary<int, Summary> protocol = new Dictionary<int, Summary>();
-        Dictionary<DateTime, Summary> dates = new Dictionary<DateTime, Summary>();
-
-        using (FileStream fs = File.Open(@"c:\out.dat", FileMode.Open, FileAccess.Read)) {
-          BinaryReader reader = new BinaryReader(fs);
-          NetmonRecord r = new NetmonRecord();
-          long i = 0;
-          System.Diagnostics.Stopwatch sw = new Stopwatch();
-          sw.Start();
-          while (fs.Position < fs.Length && i < 10000000) {
-//            readCounter.Increment();
-            r.Read(reader);
-            i++;
-
-            //Process(sourceIP, r.sourceAddress).Process(r);
-            Process<IPAddress>(sourceIP, r.sourceAddress).Process(r);
-
-            //Process(destIP, r.destinationAddress).Process(r);
-            Process<IPAddress>(destIP, r.destinationAddress).Process(r);
-
-            //Process(sPort, r.sourcePort).Process(r);
-            Process<int>(sPort, r.sourcePort).Process(r);
-
-            //Process(dPort, r.destinationPort).Process(r);
-            Process<int>(dPort, r.destinationPort).Process(r);
-
-            //Process(protocol, r.protocol).Process(r);
-            Process<int>(protocol, r.protocol).Process(r);
-
-            //Process(dates, r.start.Date).Process(r);
-            Process<DateTime>(dates, r.start.Date).Process(r);
-          }
-          sw.Stop();
-          double rate = (double)i / sw.Elapsed.TotalSeconds;
-          Console.WriteLine(i + " records, " + sourceIP.Count + " output rows in " + sw.Elapsed.TotalSeconds + " sec (" + rate + "/sec)");
-          Console.ReadLine();
-          return;
-        }
-      }
-        #endregion
-
+    static void Main(string[] args)
+    {
       #region Aliases setup
       for (int i = 0; i < subnets.Length; i++)
-        subnets[i] = new Dictionary<long, string>();
+        subnets[i] = new Dictionary<IPAddress, string>();
 
-      subnets[0].Add(IPAddress.Any.Address, "[Internet]");
+      subnets[0].Add(IPAddress.Any, "[Internet]");
 
       /*using (StreamReader reader = new StreamReader("sh_ip_bgp_nei_198.32.212.253_routes.txt")) {
         string line = null;
@@ -251,54 +233,77 @@ namespace Analyzer {
         }
       }*/
 
-      subnets[24].Add(IPAddress.Parse("192.168.1.0").Address, "[Local]");
+      #region Imaging Central
+      subnets[32].Add(IPAddress.Parse("192.168.19.108"), "ICP-RISSQL");
+      subnets[32].Add(IPAddress.Parse("192.168.19.109"), "ICP-RISAPP");
+      subnets[32].Add(IPAddress.Parse("192.168.19.110"), "ICP-RISAGT");
 
-      subnets[32].Add(IPAddress.Parse("192.168.1.254").Address, "tyrant");
-      subnets[32].Add(IPAddress.Parse("192.168.1.253").Address, "templar");
-      subnets[32].Add(IPAddress.Parse("192.168.1.252").Address, "troy");
-      subnets[32].Add(IPAddress.Parse("192.168.1.251").Address, "archon");
-      subnets[32].Add(IPAddress.Parse("192.168.1.250").Address, "toshiba");
-      subnets[32].Add(IPAddress.Parse("192.168.1.249").Address, "triso");
-      subnets[32].Add(IPAddress.Parse("192.168.1.248").Address, "tristan");
-      subnets[32].Add(IPAddress.Parse("192.168.1.247").Address, "raptor");
-      subnets[32].Add(IPAddress.Parse("192.168.1.246").Address, "raptor");
-      subnets[32].Add(IPAddress.Parse("192.168.1.245").Address, "oni");
-      subnets[32].Add(IPAddress.Parse("192.168.1.244").Address, "oni");
-      subnets[32].Add(IPAddress.Parse("192.168.1.243").Address, "hawkes");
-      subnets[32].Add(IPAddress.Parse("192.168.1.242").Address, "arbiter");
-      subnets[32].Add(IPAddress.Parse("192.168.1.241").Address, "solzak");      
-      subnets[32].Add(IPAddress.Parse("192.168.1.240").Address, "wifi");
-      subnets[32].Add(IPAddress.Parse("192.168.1.239").Address, "gavinm");
-      subnets[32].Add(IPAddress.Parse("192.168.1.238").Address, "gavinm");
-      subnets[32].Add(IPAddress.Parse("192.168.1.237").Address, "gav-n80");
-      subnets[32].Add(IPAddress.Parse("192.168.1.236").Address, "vitalstatistix");
-      subnets[32].Add(IPAddress.Parse("192.168.1.235").Address, "ixy");
-      subnets[32].Add(IPAddress.Parse("192.168.1.234").Address, "bullet-pc");
-      //subnets[32].Add(IPAddress.Parse("192.168.1.233").Address, "evilspyn");
-      subnets[32].Add(IPAddress.Parse("192.168.1.232").Address, "evilspyn");
-      subnets[32].Add(IPAddress.Parse("192.168.1.231").Address, "obelix");
-      subnets[32].Add(IPAddress.Parse("192.168.1.230").Address, "gav-iphone");
-      subnets[32].Add(IPAddress.Parse("192.168.1.229").Address, "dogmatix");
-      subnets[32].Add(IPAddress.Parse("192.168.1.228").Address, "dogmatix");
-      subnets[32].Add(IPAddress.Parse("192.168.1.227").Address, "ixy");
-      subnets[32].Add(IPAddress.Parse("192.168.1.226").Address, "phoenix");
-      subnets[32].Add(IPAddress.Parse("192.168.1.225").Address, "adsl");
+      subnets[32].Add(IPAddress.Parse("192.168.19.62"), "IC-CONSULTING");
+      subnets[32].Add(IPAddress.Parse("192.168.10.69"), "ICENT-MOR-RWS1");
+
+      subnets[24].Add(IPAddress.Parse("192.168.19.0"), "[Claremont]");
+      subnets[24].Add(IPAddress.Parse("192.168.10.0"), "[Morley]");
+      #endregion
+
+      #region Kestral
+      /*subnets[24].Add(IPAddress.Parse("10.250.1.0"), "Perth Servers");
+      subnets[24].Add(IPAddress.Parse("10.250.2.0"), "Perth Workstations");
+      subnets[24].Add(IPAddress.Parse("10.252.1.0"), "Melbourne Servers");
+      subnets[24].Add(IPAddress.Parse("10.252.2.0"), "Melbourne Workstations");
+      subnets[24].Add(IPAddress.Parse("10.254.1.0"), "Sydney Servers");
+      subnets[24].Add(IPAddress.Parse("10.254.2.0"), "Sydney Workstations");
+
+      subnets[32].Add(IPAddress.Parse("10.250.1.69"), "PER-HQ");
+      subnets[32].Add(IPAddress.Parse("10.250.1.73"), "PER-HQ-AGENT");*/
+      #endregion
+
+      #region almostpurple
+      /*subnets[24].Add(IPAddress.Parse("192.168.1.0"), "[Local]");
+
+      subnets[32].Add(IPAddress.Parse("192.168.1.254"), "tyrant");
+      subnets[32].Add(IPAddress.Parse("192.168.1.253"), "templar");
+      subnets[32].Add(IPAddress.Parse("192.168.1.252"), "troy");
+      subnets[32].Add(IPAddress.Parse("192.168.1.251"), "archon");
+      subnets[32].Add(IPAddress.Parse("192.168.1.250"), "toshiba");
+      subnets[32].Add(IPAddress.Parse("192.168.1.249"), "triso");
+      subnets[32].Add(IPAddress.Parse("192.168.1.248"), "tristan");
+      subnets[32].Add(IPAddress.Parse("192.168.1.247"), "raptor");
+      subnets[32].Add(IPAddress.Parse("192.168.1.246"), "raptor");
+      subnets[32].Add(IPAddress.Parse("192.168.1.245"), "oni");
+      subnets[32].Add(IPAddress.Parse("192.168.1.244"), "oni");
+      subnets[32].Add(IPAddress.Parse("192.168.1.243"), "hawkes");
+      subnets[32].Add(IPAddress.Parse("192.168.1.242"), "arbiter");
+      subnets[32].Add(IPAddress.Parse("192.168.1.241"), "solzak");      
+      subnets[32].Add(IPAddress.Parse("192.168.1.240"), "wifi");
+      subnets[32].Add(IPAddress.Parse("192.168.1.239"), "gavinm");
+      subnets[32].Add(IPAddress.Parse("192.168.1.238"), "gavinm");
+      subnets[32].Add(IPAddress.Parse("192.168.1.237"), "gav-n80");
+      subnets[32].Add(IPAddress.Parse("192.168.1.236"), "vitalstatistix");
+      subnets[32].Add(IPAddress.Parse("192.168.1.235"), "ixy");
+      subnets[32].Add(IPAddress.Parse("192.168.1.234"), "bullet-pc");
+      //subnets[32].Add(IPAddress.Parse("192.168.1.233"), "evilspyn");
+      subnets[32].Add(IPAddress.Parse("192.168.1.232"), "evilspyn");
+      subnets[32].Add(IPAddress.Parse("192.168.1.231"), "obelix");
+      subnets[32].Add(IPAddress.Parse("192.168.1.230"), "gav-iphone");
+      subnets[32].Add(IPAddress.Parse("192.168.1.229"), "dogmatix");
+      subnets[32].Add(IPAddress.Parse("192.168.1.228"), "dogmatix");
+      subnets[32].Add(IPAddress.Parse("192.168.1.227"), "ixy");
+      subnets[32].Add(IPAddress.Parse("192.168.1.226"), "phoenix");
+      subnets[32].Add(IPAddress.Parse("192.168.1.225"), "adsl");
 
       // World of Warcraft uses the TCP protocol on port 3724.
       // The Blizzard Downloader, which downloads patches, also uses TCP ports 6112 and the range 6881-6999
-      subnets[32].Add(IPAddress.Parse("12.129.233.56").Address, "WoW:Gurubashi");
-      subnets[32].Add(IPAddress.Parse("12.129.225.78").Address, "WoW:Blackrock");
-      subnets[32].Add(IPAddress.Parse("203.206.95.15").Address, "TeamSpeak");
+      subnets[32].Add(IPAddress.Parse("12.129.233.56"), "WoW:Gurubashi");
+      subnets[32].Add(IPAddress.Parse("12.129.225.78"), "WoW:Blackrock");
+      subnets[32].Add(IPAddress.Parse("203.206.95.15"), "TeamSpeak");
 
       // EVE uses TCP 26000 to it's only server cluster
-      subnets[32].Add(IPAddress.Parse("157.157.139.10").Address, "EVE:Tranquility");
+      subnets[32].Add(IPAddress.Parse("157.157.139.10"), "EVE:Tranquility");
 
       // DDO
       // Ports 9000-9010 UDP
-      // Ports 2900-2910 UDP
-
-      subnets[32].Add(IPAddress.Parse("0.0.0.0").Address, "[None]");
-      subnets[32].Add(IPAddress.Parse("255.255.255.255").Address, "[Broadcast]");
+      // Ports 2900-2910 UDP*/
+      #endregion
 
       Dictionary<string, int> ignoredSenders = new Dictionary<string, int>();
       ignoredSenders.Add("[Local]", 0);
@@ -328,82 +333,100 @@ namespace Analyzer {
       ignoredSenders.Add("dogmatix", 0);
       #endregion
 
+      subnets[32].Add(IPAddress.Parse("0.0.0.0"), "[None]");
+      subnets[32].Add(IPAddress.Parse("255.255.255.255"), "[Broadcast]");
+
       Dictionary<string, Dictionary<string, Entry>> summaryTable = new Dictionary<string, Dictionary<string, Entry>>();
 
       //string path = @"\\archon\g$\logs";
       //string path = @"C:\Logs\Netmon@WebSpy";
-      string path = @"\\tyrant\logs\netmon";
+      //string path = @"\\tyrant\logs\netmon";
+      //string path = @"C:\Performance\kestral-hq";
+      string path = @"c:\incoming\ic-netmon";
       //string filter = "2005090?.log.gz";
       //string filter = "*.log.gz";
-      string filter = "200810*.log";
-//      using (BinaryWriter writer = new BinaryWriter(File.Create("c:\\out.dat", 1 << 20))) {
-        foreach (string fileName in Directory.GetFiles(path, filter)) {
-          try {
-            Console.WriteLine(fileName);
+      string filter = "*.log";
 
-            Stream s = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            if (Path.GetExtension(fileName) == ".gz")
-              s = new GZipInputStream(s);
+      foreach (string fileName in Directory.GetFiles(path, filter))
+      {
+        try
+        {
+          Console.WriteLine(fileName);
 
-            using (StreamReader reader = new StreamReader(s)) {
-              summaryTable.Clear();
-              string line;
-              int lines = 0;
-              long t = Environment.TickCount;
-              NetmonRecord record = new NetmonRecord();
+          var timer = Stopwatch.StartNew();
+          var lines = 0;
 
-              TimeSpan offpeakStart = new TimeSpan(2, 0, 0);
-              TimeSpan offpeakEnd = new TimeSpan(10, 0, 0);
+          Stream s = new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+          if (Path.GetExtension(fileName) == ".gz")
+            s = new GZipInputStream(s);
 
-              while ((line = reader.ReadLine()) != null) {
-                if (line.Length > 0 && line[0] != '#') {
-//                  parseCounter.Increment();
+          using (StreamReader reader = new StreamReader(s))
+          {
+            summaryTable.Clear();
+            string line;
+            NetmonRecord record = new NetmonRecord();
 
-                  record.Parse(line);
+            TimeSpan offpeakStart = new TimeSpan(2, 0, 0);
+            TimeSpan offpeakEnd = new TimeSpan(10, 0, 0);
 
-                  //record.Write(writer);
+            while ((line = reader.ReadLine()) != null)
+            {
+              if (line.Length == 0 || line[0] == '#')
+                continue;
 
-                  string source = Resolve(record.sourceAddress);
-                  string dest = Resolve(record.destinationAddress);
+              record.Parse(line);
 
-                  Dictionary<string, Entry> child;
-                  if (!summaryTable.TryGetValue(source, out child)) {
-                    child = new Dictionary<string, Entry>();
-                    summaryTable.Add(source, child);
-                  }
-                  Entry entry;
-                  if (!child.TryGetValue(dest, out entry)) {
-                    entry = new Entry();
-                    child.Add(dest, entry);
-                  }
+              if (record.protocol != 6)
+                continue;
+              if (!(record.sourcePort == 40100 || record.destinationPort == 40100))
+                continue;
 
-                  TimeSpan recTime = record.start.AddHours(9).TimeOfDay;
-                  Summary summary = offpeakStart < recTime && recTime < offpeakEnd ?
-                    entry.Offpeak : entry.Peak;
-                  summary.Bytes += record.octets;
-                  summary.Duration += record.duration;
-                }
+              string source = Resolve(record.sourceAddress);
+              string dest = Resolve(record.destinationAddress);
 
-                lines++;
+              Dictionary<string, Entry> child;
+              if (!summaryTable.TryGetValue(source, out child))
+              {
+                child = new Dictionary<string, Entry>();
+                summaryTable.Add(source, child);
               }
-              t = Environment.TickCount - t;
-              Console.WriteLine(lines + " lines in " + new TimeSpan(0, 0, 0, 0, (int)t));
-              foreach (KeyValuePair<string, Dictionary<string, Entry>> parent in summaryTable) {
-                foreach (KeyValuePair<string, Entry> child in parent.Value) {
-                  if (child.Value.Peak.Bytes > 0 || child.Value.Offpeak.Bytes > 0) {
-                    if (!ignoredSenders.ContainsKey(parent.Key))
-                      Console.WriteLine(String.Format("{0} -> {1} = Peak: {2:n0} MB, Offpeak: {3:n0} MB", parent.Key, child.Key,
-                        (child.Value.Peak.Bytes >> 20), (child.Value.Offpeak.Bytes >> 20), 
-                        child.Value.Peak.Duration + child.Value.Offpeak.Duration));
-                  }
-                }
+              Entry entry;
+              if (!child.TryGetValue(dest, out entry))
+              {
+                entry = new Entry();
+                child.Add(dest, entry);
+              }
+
+              TimeSpan recTime = record.start.AddHours(9).TimeOfDay;
+              Summary summary = offpeakStart < recTime && recTime < offpeakEnd ?
+                entry.Offpeak : entry.Peak;
+              summary.Bytes += record.octets;
+              summary.Duration += record.duration;
+            }
+
+            lines++;
+          }
+          timer.Stop();
+          Console.WriteLine(lines + " lines in " + timer.Elapsed);
+
+          foreach (KeyValuePair<string, Dictionary<string, Entry>> parent in summaryTable)
+          {
+            foreach (KeyValuePair<string, Entry> child in parent.Value)
+            {
+              if (child.Value.Peak.Bytes > 0 || child.Value.Offpeak.Bytes > 0)
+              {
+                if (!ignoredSenders.ContainsKey(parent.Key))
+                  Console.WriteLine(String.Format("{0} -> {1} = Peak: {2:n0} MB, Offpeak: {3:n0} MB", parent.Key, child.Key,
+                    (child.Value.Peak.Bytes >> 20), (child.Value.Offpeak.Bytes >> 20),
+                    child.Value.Peak.Duration + child.Value.Offpeak.Duration));
               }
             }
-            Console.WriteLine();
-          } catch {
           }
         }
-      //}
+        catch
+        {
+        }
+      }
       Console.ReadLine();
     }
   }

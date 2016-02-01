@@ -11,9 +11,9 @@ using System.Runtime.CompilerServices;
 [assembly: AssemblyTitle("NetmonService")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("WebSpy Ltd")]
+[assembly: AssemblyCompany("AlmostPurple Software")]
 [assembly: AssemblyProduct("NetmonService")]
-[assembly: AssemblyCopyright("Copyright @ WebSpy Ltd 2004")]
+[assembly: AssemblyCopyright("Copyright @ AlmostPurple Software 2004-2016")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
